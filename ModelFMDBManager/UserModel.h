@@ -15,5 +15,6 @@
 @property (nonatomic, strong) NSArray *array;
 @property (assign) NSNumber *xNumber;
 @property (assign) NSInteger intrger;
+@property (assign) double mDouble;
 
 @end

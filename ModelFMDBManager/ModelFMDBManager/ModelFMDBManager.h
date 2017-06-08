@@ -16,12 +16,12 @@
  - ModelFMDBOperationTypeQuery: 查询数据
  - ModelFMDBOperationTypeModify: 修改数据 (如果不加限制条件，则为清空原数据，从新添加新数据)
  */
-typedef NS_ENUM(NSUInteger) {
+typedef NS_ENUM(NSUInteger, ModelFMDBOperationType) {
     ModelFMDBOperationTypeAdd,
     ModelFMDBOperationTypeDelete,
     ModelFMDBOperationTypeQuery,
     ModelFMDBOperationTypeModify,
-}ModelFMDBOperationType;
+};
 
 /**
  对数据库/表的操作方法
@@ -29,16 +29,16 @@ typedef NS_ENUM(NSUInteger) {
  - ModelFMDBTypeCreate: 创建表
  - ModelFMDBTypeOpen: 打开数据表 (暂无此功能)
  - ModelFMDBTypeClose: 关闭数据表 (暂无此功能)
- - ModelFMDBTypeClear: 清除数据表 (清空数据，不删除定义)
+ - ModelFMDBTypeClean: 清除数据表 (清空数据，不删除定义)
  - ModelFMDBTypeDrop: 删除数据库
  */
-typedef NS_ENUM(NSUInteger) {
+typedef NS_ENUM(NSUInteger, ModelFMDBType) {
     ModelFMDBTypeCreate,
     ModelFMDBTypeOpen,
     ModelFMDBTypeClose,
     ModelFMDBTypeClean,
     ModelFMDBTypeDrop,
-}ModelFMDBType;
+};
 
 /**
  二次封装fmdb，通过model-sqlite对数据库进行操作
@@ -49,6 +49,14 @@ typedef NS_ENUM(NSUInteger) {
  是否打印日志，默认启动debug打印日志
  */
 @property (assign) BOOL  debugLogs;
+
+/**
+ 初始化
+
+ @param name 本地项目内的数据库路径
+ @return 初始化结果
+ */
+-(instancetype)initWithBundleName:(NSString *)name;
 
 /**
  创建实例，项目唯一性 (使用工程名为db库名)

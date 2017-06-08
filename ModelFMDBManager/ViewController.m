@@ -59,6 +59,10 @@
     inserModel.array = @[@"我猜",@"人才啊",@"蠢"];
     inserModel.xNumber = @100;
     inserModel.intrger = 1000;
+    inserModel.mDouble = 1000.1042;
+    
+//    NSDictionary *dict = [NSDictionary dictionary];
+//    inserModel.mDouble = [[dict objectForKey:@"double"] doubleValue];
     
     NSMutableArray *inserModelArr = [NSMutableArray array];
     for (int index = 0 ; index <= 10; index ++ ) {

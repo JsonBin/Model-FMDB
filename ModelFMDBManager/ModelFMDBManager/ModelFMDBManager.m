@@ -18,6 +18,7 @@
 #endif
 
 #define currentDB (FMDatabase *)[self.dbDictionary objectForKey:self.dbName]
+#define MODELID @"id"  // 每张表的自动存的id名字
 
 @interface ModelFMDBManager()
 
@@ -81,6 +82,22 @@ static ModelFMDBManager *manager = nil;
     [manager showLogs:@"数据库路径为%@",dbPath];
     
     return manager;
+}
+
+-(instancetype)initWithBundleName:(NSString *)name {
+    if (self == [super self]) {
+        if (![name.pathExtension isEqualToString:@"db"]) {
+            name = [name stringByAppendingString:@".db"];
+        }
+        if (!self.dbDictionary) {
+            self.dbDictionary = [NSMutableDictionary dictionary];
+        }
+        self.debugLogs = YES;
+        FMDatabase *base = [FMDatabase databaseWithPath:name];
+        [self.dbDictionary setValue:base forKey:name];
+        self.dbName = name;
+    }
+    return self;
 }
 
 -(BOOL)database:(id)model fmdbType:(ModelFMDBType)fmdbType {
@@ -193,7 +210,7 @@ static ModelFMDBManager *manager = nil;
  @return 创建是否成功
  */
 -(BOOL)create:(id)model autoClose:(BOOL)autoClose{
-    NSString *modelString = NSStringFromClass([model class]);
+    NSString *modelString = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"创建数据表%@",modelString];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -256,7 +273,7 @@ static ModelFMDBManager *manager = nil;
  @return 清空是否成功
  */
 /*-(BOOL) truncate:(id)model autoClose:(BOOL)autoClose {
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"即将清除数据表(%@)",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -288,7 +305,7 @@ static ModelFMDBManager *manager = nil;
  @return 清空是否成功
  */
 -(BOOL) truncate:(id)model autoClose:(BOOL)autoClose {
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"即将清除数据表(%@)",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -336,7 +353,7 @@ static ModelFMDBManager *manager = nil;
  @return 删除数据或表是否成功
  */
 -(BOOL)delete:(id)model otherLimit:(NSString *)otherLimit autoClose:(BOOL)autoClose {
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"即将删除数据表(%@)",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -348,7 +365,7 @@ static ModelFMDBManager *manager = nil;
             }
             return NO;
         }
-        NSArray *resultArr = [self query:model otherLimit:otherLimit autoClose:NO];
+        NSArray *resultArr = [self query:model otherLimit:nil autoClose:NO];
         if (resultArr && resultArr.count > 0) {
             NSString *sql  = [NSString stringWithFormat:@"DELETE FROM %@",table];
             if (otherLimit) {
@@ -382,7 +399,7 @@ static ModelFMDBManager *manager = nil;
  @return 查询的结果，对应为model的数组
  */
 -(NSArray *)query:(id)model otherLimit:(NSString *)otherLimit autoClose:(BOOL)autoClose {
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"查询数据表(%@)的数据",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -431,6 +448,7 @@ static ModelFMDBManager *manager = nil;
                     [newModel setValue:value forKey:property];
                 }
             }
+            free(ivars);
             
             [modelArr addObject:newModel];
         }
@@ -457,7 +475,7 @@ static ModelFMDBManager *manager = nil;
         [self showLogs:@"插入数据非法,插入数据失败"];
         return NO;
     }
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"即将开始插入数据到数据表(%@)",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -504,7 +522,7 @@ static ModelFMDBManager *manager = nil;
  @return 修改数据是否成功
  */
 -(BOOL) modify:(id)model otherLimit:(NSString *)otherLimit autoClose:(BOOL)autoClose {
-    NSString *table = NSStringFromClass([model class]);
+    NSString *table = [NSStringFromClass([model class]) componentsSeparatedByString:@"."].lastObject;
     [self showLogs:@"即将修改数据表(%@)的数据",table];
     if ([currentDB open]) {
         [self showLogs:@"打开数据库(%@)成功",currentDB];
@@ -566,7 +584,8 @@ static ModelFMDBManager *manager = nil;
     
     Class modelclass = [model class];
 //    NSMutableString *sql = [NSMutableString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ (id INTEGER PRIMARY KEY AUTOINCREMENT , ",modelclass];
-    NSMutableString *sql = [NSMutableString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ (", modelclass];
+    NSString *modelString = [NSStringFromClass(modelclass) componentsSeparatedByString:@"."].lastObject;
+    NSMutableString *sql = [NSMutableString stringWithFormat:@"CREATE TABLE IF NOT EXISTS %@ (%@ INTEGER PRIMARY KEY AUTOINCREMENT, ", modelString, MODELID];
     
     unsigned int outCount = 0;
     Ivar *ivars = class_copyIvarList(modelclass, &outCount);
@@ -580,10 +599,17 @@ static ModelFMDBManager *manager = nil;
             property = [property stringByReplacingCharactersInRange:NSMakeRange(property.length-1, 1) withString:@""];
         }
         
+        if ([property isEqualToString:MODELID]) {
+            continue;
+        }
+        
         if (index == 0) {
             [sql appendString:property];
         }else{
-            [sql appendFormat:@", %@",property];
+            if (index == 1) {
+                [sql appendString:property];
+            }else
+                [sql appendFormat:@" ,%@",property];
         }
     }
     [sql appendString:@")"];
@@ -597,7 +623,8 @@ static ModelFMDBManager *manager = nil;
     [self showLogs:@"执行插入语句SQL创建"];
     
     Class modelclass = [model class];
-    NSMutableString *sql = [NSMutableString stringWithFormat:@"INSERT OR REPLACE INTO %@ (", modelclass];
+    NSString *modelString = [NSStringFromClass(modelclass) componentsSeparatedByString:@"."].lastObject;
+    NSMutableString *sql = [NSMutableString stringWithFormat:@"INSERT OR REPLACE INTO %@ (", modelString];
     
     unsigned int outCount = 0;
     Ivar *ivars = class_copyIvarList(modelclass, &outCount);
@@ -612,10 +639,17 @@ static ModelFMDBManager *manager = nil;
             property = [property stringByReplacingCharactersInRange:NSMakeRange(property.length-1, 1) withString:@""];
         }
         
+        if ([property isEqualToString:MODELID]) {
+            continue;
+        }
+        
         if (index == 0) {
             [sql appendString:property];
         }else{
-            [sql appendFormat:@", %@",property];
+            if (index == 1) {
+                [sql appendString:property];
+            }else
+                [sql appendFormat:@", %@",property];
         }
     }
     [sql appendFormat:@") VALUES ("];
@@ -629,6 +663,10 @@ static ModelFMDBManager *manager = nil;
         }
         if ([property hasSuffix:@"_"]) {
             property = [property stringByReplacingCharactersInRange:NSMakeRange(property.length-1, 1) withString:@""];
+        }
+        
+        if ([property isEqualToString:MODELID]) {
+            continue;
         }
         
         id value = [model valueForKey:property];
@@ -647,7 +685,10 @@ static ModelFMDBManager *manager = nil;
              // sql 语句中字符串需要单引号或者双引号括起来
             [sql appendFormat:@"%@",[value isKindOfClass:[NSString class]] ? [NSString stringWithFormat:@"'%@'",value] : value];
         }else{
-            [sql appendFormat:@", %@",[value isKindOfClass:[NSString class]] ? [NSString stringWithFormat:@"'%@'",value] : value];
+            if (index == 1) {
+                [sql appendFormat:@"%@",[value isKindOfClass:[NSString class]] ? [NSString stringWithFormat:@"'%@'",value] : value];
+            }else
+                [sql appendFormat:@", %@",[value isKindOfClass:[NSString class]] ? [NSString stringWithFormat:@"'%@'",value] : value];
         }
     }
     if (otherLimit && otherLimit.length > 0) {
@@ -666,7 +707,8 @@ static ModelFMDBManager *manager = nil;
     [self showLogs:@"开始执行创建修改SQL语句"];
     
     Class modelclass = [model class];
-    NSMutableString *sql = [NSMutableString stringWithFormat:@"UPDATE  %@  SET", modelclass];
+    NSString *modelString = [NSStringFromClass(modelclass) componentsSeparatedByString:@"."].lastObject;
+    NSMutableString *sql = [NSMutableString stringWithFormat:@"UPDATE %@ SET ", modelString];
     
     unsigned int outCount = 0;
     Ivar *ivars = class_copyIvarList(modelclass, &outCount);
@@ -694,7 +736,7 @@ static ModelFMDBManager *manager = nil;
         }
     }
     if (otherLimit && otherLimit.length > 0) {
-        [sql appendFormat:@") %@",otherLimit];
+        [sql appendFormat:@" %@",otherLimit];
     }
     
     [self showLogs:@"修改的SQL语句为:%@",sql];
